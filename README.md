@@ -31,6 +31,19 @@ Aplicação web para preencher automaticamente um modelo padrão de evolução d
 - `npm run build`: gera build de produção
 - `npm run preview`: visualiza build local
 
+## Publicar no GitHub Pages
+
+1. Suba o projeto para um repositório no GitHub (branch `main`).
+2. No GitHub, abra **Settings > Pages**.
+3. Em **Build and deployment**, selecione **GitHub Actions** como source.
+4. Faça um push para `main`.
+5. O workflow `Deploy to GitHub Pages` vai gerar e publicar o conteúdo de `dist/` automaticamente.
+
+Observações:
+
+- O `base` do Vite é ajustado automaticamente no CI para `/<nome-do-repo>/`.
+- Localmente, o app continua usando `http://localhost:5173/evolucao/`.
+
 ## Webhook de doação
 
 1. Copie `.env.example` para `.env` e informe `MP_ACCESS_TOKEN`.
