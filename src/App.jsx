@@ -232,7 +232,7 @@ const CLINICAL_TRANSFORM_RULES = [
 ]
 
 const KEY_LINE_RULES = [
-  { key: 'diagnostico', labels: ['diagnóstico', 'diagnostico'], templateLabel: 'DIAGNÓSTICO' },
+  { key: 'diagnostico', labels: ['diagnóstico', 'diagnostico', 'Diagnósticos agudos'], templateLabel: 'DIAGNÓSTICO' },
   { key: 'comorbidades', labels: ['comorbidades', 'comorbidade', 'hpp', 'historia pregressa', 'história pregressa'], templateLabel: 'COMORBIDADES' },
   { key: 'alergias', labels: ['alergias'], templateLabel: 'ALERGIAS' },
 ]
