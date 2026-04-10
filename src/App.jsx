@@ -59,8 +59,25 @@ const FIELD_PATTERNS = {
   paciente: [/paciente\s*:?\s*([A-ZÀ-ÿ][A-Za-zÀ-ÿ'\s]+?)(?:,|\.|\s+\d+\s*anos|$)/i],
   idade: [/\b(\d{1,3})\s*anos?\b/i],
   leito: [/\bleito\s*:?\s*([A-Za-z0-9-]+)/i],
-  diagnostico: [/diagn[oó]stico(?:\s+principal)?\s*:?\s*([^\.\n]+)/i],
-  subjetivo: [/(refere[^\n\.]*[\n\.]?[^\n]*)/i],
+  diagnostico: [
+    /diagn[oó]sticos?\s+agudos?\s*:?\s*\n+\s*([^\n]+)/i,
+    /diagn[oó]sticos?\s+agudos?\s*:?\s*([^\.\n]+)/i,
+    /diagn[oó]stico(?:\s+principal)?\s*:?\s*([^\.\n]+)/i,
+  ],
+  comorbidades: [
+    /(?:hpp\s*\/\s*comorbidades|comorbidades\s*\/\s*hpp)\s*:?\s*\n+\s*([^\n]+)/i,
+    /(?:hpp\s*\/\s*comorbidades|comorbidades\s*\/\s*hpp)\s*:?\s*([^\.\n]+)/i,
+    /(?:comorbidades|comorbidade|hpp|hist[oó]ria\s+pregressa|historia\s+pregressa)\s*:?\s*\n+\s*([^\n]+)/i,
+    /(?:comorbidades|comorbidade||Histórico patológico pregresso (HPP)||(HPP)|hpp|hist[oó]ria\s+pregressa|historia\s+pregressa)\s*:?\s*([^\.\n]+)/i,
+  ],
+  alergias: [
+    /(?:alergias\s+medicamentosas|alergias\s+conhecidas|alergias?||alergia|antecedentes\s+al[eé]rgicos|antecedentes\s+alergicos)\s*:?\s*\n+\s*([^\n]+)/i,
+    /(?:alergias\s+medicamentosas|alergias\s+conhecidas|alergias?|antecedentes\s+al[eé]rgicos|antecedentes\s+alergicos)\s*:?\s*([^\.\n]+)/i,
+  ],
+  subjetivo: [
+    /\brefere\b\s*:?\s*([^\n\.;]+)/i,
+    /(refere[^\n\.]*)/i,
+  ],
   estado_geral: [/(bom estado geral|regular estado geral|estado geral preservado|hipocorado|desidratado|acian[oó]tico|anict[eé]rico)/i],
   sinais_vitais: [/(PA\s*[^\n\.]*?SatO2\s*[^\n\.]*)/i, /(SV\s*:?\s*[^\n]+)/i],
   pulmoes: [/(pulm[aã]o(?:es)?[^\n\.]*|crepita[cç][oõ]es[^\n\.]*)/i],
@@ -179,6 +196,21 @@ const CLINICAL_TRANSFORM_RULES = [
     from: /Segue em dieta zero, em jejum, sem intercorrências\./i,
     to: 'Segue em dieta VO, com boa aceitação da dieta e sem intercorrências.',
   },
+    {
+    ifSource: ['SNE', 'enteral', 'dieta enteral'],
+    from: /Segue em dieta VO, com boa aceitação da dieta e sem intercorrências\./i,
+    to: 'Segue em dieta por SNE em BIC CPM, com boa aceitação da dieta e sem intercorrências.',
+  },
+    {
+      ifSource: ['box 01', 'box 02', 'box 03'],
+      from: /Paciente em box\s*0?[123]\s+do PS adulto,/i,
+      to: 'Paciente em box de observação do PS adulto,',
+    },
+        {
+      ifSource: ['sala vermelha', 'SALA VERMELHA'],
+      from: /Paciente em box\s*0?[123]\s+do PS adulto,/i,
+      to: 'Paciente em leito de sala vermelha do PS adulto,',
+    },
   {
     ifSource: ['aceitacao parcial', 'aceitação parcial'],
     from: /Segue em dieta VO, com boa aceitação da dieta e sem intercorrências\./i,
@@ -232,9 +264,51 @@ const CLINICAL_TRANSFORM_RULES = [
 ]
 
 const KEY_LINE_RULES = [
-  { key: 'diagnostico', labels: ['diagnóstico', 'diagnostico', 'Diagnósticos agudos'], templateLabel: 'DIAGNÓSTICO' },
-  { key: 'comorbidades', labels: ['comorbidades', 'comorbidade', 'hpp', 'historia pregressa', 'história pregressa'], templateLabel: 'COMORBIDADES' },
-  { key: 'alergias', labels: ['alergias'], templateLabel: 'ALERGIAS' },
+  {
+    key: 'diagnostico',
+    labels: [
+      'diagnóstico',
+      'diagnostico',
+      'diagnóstico principal',
+      'diagnostico principal',
+      'diagnósticos agudos',
+      'diagnosticos agudos',
+      'hipóteses diagnósticas',
+      'hipoteses diagnosticas',
+      'impressão diagnóstica',
+      'impressao diagnostica',
+    ],
+    templateLabel: 'DIAGNÓSTICO',
+  },
+  {
+    key: 'comorbidades',
+    labels: [
+      'comorbidades',
+      'comorbidade',
+      'hpp',
+      'hpp/comorbidades',
+      'comorbidades/hpp',
+      'historia pregressa',
+      'história pregressa',
+      'antecedentes pessoais',
+      'histórico patológico pregresso',
+      'histórico patológico pregresso (HPP)',
+      '(HPP)',
+    ],
+    templateLabel: 'COMORBIDADES',
+  },
+  {
+    key: 'alergias',
+    labels: [
+      'alergias',
+      'alergia',
+      'alergias medicamentosas',
+      'alergias conhecidas',
+      'antecedentes alergicos',
+      'antecedentes alérgicos',
+    ],
+    templateLabel: 'ALERGIAS',
+  },
 ]
 
 const DEFAULT_RESPIRATORY_LINE = '- Paciente em box 02 do PS adulto, com presença de acompanhante, consciente, orientado, fásico comunicativo, abertura ocular espontânea, contactua aos estímulos verbais, respirando sem auxílio de O², em AA e sem sinais de desconforto respiratório. Ao exame: anictérico, acianótico, normocorado, afebril, normocárdico, normotenso, tórax sem abaulamentos, abdômen globoso. Segue em dieta VO, com boa aceitação da dieta e sem intercorrências. AVP em MSE pérvio e sem sinais flogísticos. Eliminações vesicais-intestinais espontâneas e sem alterações.'
@@ -242,7 +316,7 @@ const DEFAULT_RESPIRATORY_LINE = '- Paciente em box 02 do PS adulto, com presen�
 const ENTRY_LINE_TEXT = 'Paciente deu entrada em PS adulto'
 
 const EXAM_PATTERNS = [
-  /\b(exame|exames|hemograma|leuco|hb|hct|plaqueta|cr|creatinina|ureia|pcr|procalcitonina|lactato|gasometria|rx|raio\s*x|tomografia|tc\b|ressonancia|rm\b|usg|ultrassom|ecg|ecocardiograma)\b/i,
+  /\b(exame|exames|hemograma|leuco|hb|hct|plaqueta|cr|creatinina|ureia|pcr|procalcitonina|troponina|lactato|gasometria|rx|raio\s*x|tomografia|tc\b|ressonancia|rm\b|usg|ultrassom|ecg|ecocardiograma|ecott|eco-tt|cate|cateterismo)\b/i,
 ]
 
 const OPINION_PATTERNS = [
@@ -356,7 +430,7 @@ function extractPatientRefereParagraph(source) {
 
   for (const paragraph of paragraphs) {
     const normalizedParagraph = normalizeText(paragraph)
-    if (normalizedParagraph.includes('paciente refere')) {
+    if (normalizedParagraph.includes('paciente refere') || normalizedParagraph.includes('retorna') || normalizedParagraph.includes('relata') || normalizedParagraph.includes('refere melhora') || normalizedParagraph.includes('refere piora') || normalizedParagraph.includes('refere dispneia') || normalizedParagraph.includes('refere dor') || normalizedParagraph.includes('refere febre') || normalizedParagraph.includes('refere calafrios') || normalizedParagraph.includes('refere sintomas')) {
       return paragraph
     }
   }
@@ -705,20 +779,17 @@ function buildScaleLineFromText(text, sourceText = '') {
 function applyAutomaticScales(text, sourceText = '') {
   const scaleLine = buildScaleLineFromText(text, sourceText)
   const lines = text.split('\n')
-  const scaleIndex = lines.findIndex((line) => /escala de braden|escala de morse|escala de dor eva/i.test(line))
 
-  if (scaleIndex >= 0) {
-    lines[scaleIndex] = scaleLine
-    return lines.join('\n')
+  const bodyLines = lines.filter(
+    (line) => !/escala de braden|escala de morse|escala de dor eva|gerenciamento de riscos/i.test(line),
+  )
+  const bodyText = bodyLines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
+
+  if (!bodyText) {
+    return `Gerenciamento de riscos:\n${scaleLine}\n`
   }
 
-  const managementIndex = lines.findIndex((line) => /gerenciamento de riscos/i.test(line))
-  if (managementIndex >= 0) {
-    lines.splice(managementIndex + 1, 0, scaleLine)
-    return lines.join('\n')
-  }
-
-  return `${text.trimEnd()}\n\n${scaleLine}\n`
+  return `${bodyText}\n\nGerenciamento de riscos:\n${scaleLine}\n`
 }
 
 function pick(text, patterns) {
@@ -730,10 +801,95 @@ function pick(text, patterns) {
   return ''
 }
 
+function extractSubjectiveValue(source) {
+  const text = source || ''
+
+  const retornaRefereRegex = /retorn(?:a|o|ou|ando)?[^\n\.;:]{0,140}?\brefere\b\s*:?\s*([^\n\.;]+)/gi
+  let retornaRefereMatch = null
+  for (const match of text.matchAll(retornaRefereRegex)) {
+    retornaRefereMatch = match
+  }
+  if (retornaRefereMatch?.[1]) return retornaRefereMatch[1].trim()
+
+  const refereRegex = /\brefere\b\s*:?\s*([^\n\.;]+)/gi
+  let lastRefereMatch = null
+  for (const match of text.matchAll(refereRegex)) {
+    lastRefereMatch = match
+  }
+  if (lastRefereMatch?.[1]) return lastRefereMatch[1].trim()
+
+  return ''
+}
+
+function abbreviateComorbidities(value) {
+  if (!value) return ''
+
+  const normalizedValue = normalizeText(value)
+  if (/^\s*(nega|negado|nenhuma|nenhum|sem comorbidades?)\s*$/i.test(normalizedValue)) {
+    return 'NEGA'
+  }
+
+  let output = value
+    .replace(/hipertens[aã]o\s+arterial\s+sist[eê]mica/gi, 'HAS')
+    .replace(/diabetes\s+mellitus\s+tipo\s*2/gi, 'DM2')
+    .replace(/diabetes\s+mellitus\s+tipo\s*1/gi, 'DM1')
+    .replace(/diabetes\s+mellitus/gi, 'DM')
+    .replace(/doen[cç]a\s+renal\s+cr[oô]nica/gi, 'DRC')
+    .replace(/doen[cç]a\s+pulmonar\s+obstrutiva\s+cr[oô]nica/gi, 'DPOC')
+    .replace(/fibrila[cç][aã]o\s+atrial/gi, 'FA')
+    .replace(/doen[cç]a\s+arterial\s+coronariana/gi, 'DAC')
+    .replace(/insufici[eê]ncia\s+card[ií]aca\s+com\s+fra[cç][aã]o\s+de\s+eje[cç][aã]o\s+reduzida(?:\s*\(\s*ICFER\s*\))?/gi, 'ICFER')
+    .replace(/insufici[eê]ncia\s+card[ií]aca\s+com\s+fra[cç][aã]o\s+de\s+eje[cç][aã]o\s+preservada(?:\s*\(\s*ICFEP\s*\))?/gi, 'ICFEP')
+    .replace(/insufici[eê]ncia\s+card[ií]aca\s+descompensada/gi, 'IC descompensada')
+    .replace(/insufici[eê]ncia\s+card[ií]aca/gi, 'IC')
+    .replace(/acidente\s+vascular\s+cerebral/gi, 'AVC')
+    .replace(/doen[cç]a\s+de\s+alzheimer/gi, 'DA')
+    .replace(/transtorno\s+depressivo\s+maior/gi, 'TDM')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const items = output
+    .split(/\s*;\s*/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  if (!items.length) return output
+
+  const deduped = dedupeByNormalized(items)
+  return deduped.join('; ')
+}
+
+function normalizeClinicalFieldValue(key, value) {
+  if (!value) return value
+  if (key === 'comorbidades') return abbreviateComorbidities(value)
+  return value
+}
+
 function extractFields(source) {
-  return Object.fromEntries(
+  const extractedByPattern = Object.fromEntries(
     Object.entries(FIELD_PATTERNS).map(([key, patterns]) => [key, pick(source, patterns)]),
   )
+
+  const extractedSubjective = extractSubjectiveValue(source)
+  if (extractedSubjective) {
+    extractedByPattern.subjetivo = extractedSubjective
+  }
+
+  const keyLineLabelsByField = Object.fromEntries(
+    KEY_LINE_RULES.map((rule) => [rule.key, rule.labels]),
+  )
+
+  for (const [key, labels] of Object.entries(keyLineLabelsByField)) {
+    if (!extractedByPattern[key]) {
+      extractedByPattern[key] = extractLabeledValue(source, labels)
+    }
+  }
+
+  for (const key of Object.keys(extractedByPattern)) {
+    extractedByPattern[key] = normalizeClinicalFieldValue(key, extractedByPattern[key])
+  }
+
+  return extractedByPattern
 }
 
 function mergeTemplate(template, values) {
@@ -752,10 +908,55 @@ function mapLabelToField(label) {
   return LABEL_TO_FIELD[normalized] || null
 }
 
+function isLikelySectionHeader(line) {
+  const trimmed = line.trim()
+  if (!trimmed) return false
+  return /^[\-\s]*[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\/]{1,50}:\s*$/.test(trimmed)
+}
+
+function normalizeListItem(line) {
+  return line
+    .trim()
+    .replace(/^[\-•*]\s*/, '')
+    .replace(/^\d+[\.)]\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function normalizeExamParagraphItem(line) {
+  return line
+    .trim()
+    .replace(/^[\-•*]\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function extractFollowingLabeledBlock(lines, startIndex) {
+  const items = []
+
+  for (let nextIndex = startIndex + 1; nextIndex < lines.length; nextIndex += 1) {
+    const rawNextLine = lines[nextIndex]
+    const nextLine = rawNextLine.trim()
+
+    if (!nextLine) {
+      if (items.length) break
+      continue
+    }
+
+    if (isLikelySectionHeader(nextLine)) break
+
+    const normalizedItem = normalizeListItem(nextLine)
+    if (normalizedItem) items.push(normalizedItem)
+  }
+
+  return items.join('; ')
+}
+
 function extractLabeledValue(source, labels) {
   const lines = source.split('\n')
 
-  for (const rawLine of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const rawLine = lines[lineIndex]
     const normalizedLine = normalizeText(rawLine).replace(/\s+/g, ' ').trim()
 
     for (const label of labels) {
@@ -766,12 +967,18 @@ function extractLabeledValue(source, labels) {
       if (matchesLabel) {
         const separatorIndex = rawLine.indexOf(':')
         if (separatorIndex >= 0) {
-          return rawLine.slice(separatorIndex + 1).trim()
+          const sameLineValue = rawLine.slice(separatorIndex + 1).trim()
+          if (sameLineValue) return sameLineValue
+
+          return extractFollowingLabeledBlock(lines, lineIndex)
         }
 
-        return rawLine
+        const inlineValue = rawLine
           .replace(new RegExp(`^[-\\s]*${label}\\s*`, 'i'), '')
           .trim()
+
+        if (inlineValue) return inlineValue
+        return extractFollowingLabeledBlock(lines, lineIndex)
       }
     }
   }
@@ -781,7 +988,7 @@ function extractLabeledValue(source, labels) {
 
 function replaceKeyClinicalLines(template, source) {
   const replacements = Object.fromEntries(
-    KEY_LINE_RULES.map((rule) => [rule.key, extractLabeledValue(source, rule.labels)]),
+    KEY_LINE_RULES.map((rule) => [rule.key, normalizeClinicalFieldValue(rule.key, extractLabeledValue(source, rule.labels))]),
   )
 
   return template
@@ -1070,8 +1277,8 @@ function buildAoExameClause(source, values) {
   const icterusRaw = detectStatusByContext(
     source,
     [
-      { terms: ['ictérico', 'icterico', 'ictérica', 'icterica'], value: 'ictérico' },
       { terms: ['anictérico', 'anicterico', 'anictérica', 'anicterica'], value: 'anictérico' },
+      { terms: ['ictérico', 'icterico', 'ictérica', 'icterica'], value: 'ictérico' },
     ],
     'anictérico',
   )
@@ -1080,8 +1287,8 @@ function buildAoExameClause(source, values) {
   const cyanosis = detectStatusByContext(
     source,
     [
-      { terms: ['cianótico', 'cianotico', 'cianótica', 'cianotica'], value: genderedText(source, 'cianótico', 'cianótica') },
       { terms: ['acianótico', 'acianotico', 'acianótica', 'acianotica'], value: genderedText(source, 'acianótico', 'acianótica') },
+      { terms: ['cianótico', 'cianotico', 'cianótica', 'cianotica'], value: genderedText(source, 'cianótico', 'cianótica') },
     ],
     inferCyanosisLabel(vitals) || genderedText(source, 'acianótico', 'acianótica'),
   )
@@ -1289,22 +1496,133 @@ function dedupeByNormalized(items) {
   return result
 }
 
+function mergeRelatedExamItems(items) {
+  const merged = []
+
+  for (const item of items) {
+    const normalizedItem = normalizeText(item)
+    const isTroponinaOnly = normalizedItem.startsWith('troponina')
+
+    if (isTroponinaOnly && merged.length) {
+      const lastIndex = merged.length - 1
+      const lastItem = merged[lastIndex]
+      const normalizedLast = normalizeText(lastItem)
+      const isLabBlock = normalizedLast.includes('laboratoriais') || normalizedLast.includes('exames')
+
+      if (isLabBlock && !normalizedLast.includes('troponina')) {
+        merged[lastIndex] = `${lastItem}; ${item}`
+        continue
+      }
+    }
+
+    merged.push(item)
+  }
+
+  return merged
+}
+
+function extractExamBlocks(source, currentOutput) {
+  const lines = source.split('\n')
+  const outputNormalized = normalizeText(currentOutput)
+  const exams = []
+
+  const extractNextExamParagraph = (startIndex, initialValue = '') => {
+    const items = []
+    let endIndex = startIndex
+    const normalizedInitial = normalizeExamParagraphItem(initialValue)
+    if (normalizedInitial) items.push(normalizedInitial)
+
+    const startsNumberedItem = (text) => /^\d+[\.)]\s+/.test(text)
+
+    for (let nextIndex = startIndex + 1; nextIndex < lines.length; nextIndex += 1) {
+      const nextLine = lines[nextIndex].trim()
+
+      if (!nextLine) {
+        if (items.length) {
+          endIndex = nextIndex
+          break
+        }
+        continue
+      }
+
+      if (isLikelySectionHeader(nextLine)) {
+        if (!items.length) return { text: '', endIndex: startIndex }
+        endIndex = nextIndex - 1
+        break
+      }
+
+      const normalizedNextLine = normalizeExamParagraphItem(nextLine)
+      if (!normalizedNextLine) continue
+
+      if (!items.length) {
+        items.push(normalizedNextLine)
+      } else if (startsNumberedItem(normalizedNextLine)) {
+        items.push(normalizedNextLine)
+      } else {
+        items[items.length - 1] = `${items[items.length - 1]} ${normalizedNextLine}`.replace(/\s+/g, ' ').trim()
+      }
+
+      endIndex = nextIndex
+    }
+
+    return { text: items.filter(Boolean).join('; '), endIndex }
+  }
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const rawLine = lines[lineIndex]
+    const trimmedLine = rawLine.trim()
+    if (!trimmedLine) continue
+    if (!EXAM_PATTERNS.some((pattern) => pattern.test(trimmedLine))) continue
+
+    const separatorIndex = rawLine.indexOf(':')
+    if (separatorIndex >= 0) {
+      const label = rawLine.slice(0, separatorIndex).trim()
+      const sameLineValue = rawLine.slice(separatorIndex + 1).trim()
+
+      if (sameLineValue) {
+        const { text: paragraphValue, endIndex } = extractNextExamParagraph(lineIndex, sameLineValue)
+        const candidate = `${label}: ${paragraphValue || sameLineValue}`
+        if (!outputNormalized.includes(normalizeText(candidate))) exams.push(candidate)
+        lineIndex = Math.max(lineIndex, endIndex)
+        continue
+      }
+
+      const { text: nextExamParagraph, endIndex } = extractNextExamParagraph(lineIndex)
+      if (nextExamParagraph) {
+        const candidate = `${label}: ${nextExamParagraph}`
+        if (!outputNormalized.includes(normalizeText(candidate))) exams.push(candidate)
+      }
+      lineIndex = Math.max(lineIndex, endIndex)
+      continue
+    }
+
+    const { text: nextExamParagraph, endIndex } = extractNextExamParagraph(lineIndex)
+    if (nextExamParagraph) {
+      const candidate = `${trimmedLine}: ${nextExamParagraph}`
+      if (!outputNormalized.includes(normalizeText(candidate))) exams.push(candidate)
+      lineIndex = Math.max(lineIndex, endIndex)
+      continue
+    }
+
+    if (!outputNormalized.includes(normalizeText(trimmedLine))) {
+      exams.push(trimmedLine)
+    }
+  }
+
+  return dedupeByNormalized(mergeRelatedExamItems(exams))
+}
+
 function extractComplements(source, currentOutput) {
   const sentences = toSentences(source)
   const outputNormalized = normalizeText(currentOutput)
 
-  const exams = []
+  const exams = [...extractExamBlocks(source, currentOutput)]
   const opinions = []
   const plans = []
 
   for (const sentence of sentences) {
     const normalizedSentence = normalizeText(sentence)
     if (outputNormalized.includes(normalizedSentence)) continue
-
-    if (EXAM_PATTERNS.some((pattern) => pattern.test(sentence))) {
-      exams.push(sentence)
-      continue
-    }
 
     if (OPINION_PATTERNS.some((pattern) => pattern.test(sentence))) {
       opinions.push(sentence)
@@ -1326,8 +1644,59 @@ function extractComplements(source, currentOutput) {
 function appendComplements(baseText, complements) {
   const blocks = []
 
+  const formatExamComplementItem = (item) => {
+    const hasDateOrTime = (text) => /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b|\b\d{1,2}:\d{2}\b|\b\d{1,2}h\b/i.test(text)
+    const isLaboratoryLabel = (text) => /laborator|hemograma|bioqu[ií]mica|gasometria|troponina|pcr|creatinina|ureia|leuco|plaqueta|tgo|tgp|s[oó]dio|pot[aá]ssio|na\b|k\b/i.test(text)
+    const splitNumberedItems = (text) => {
+      const compact = text.replace(/\s+/g, ' ').trim()
+      const markerRegex = /(?:^|[\s;])((?:[1-9]|1\d|20)[\.)]\s+)/g
+      const markers = [...compact.matchAll(markerRegex)]
+      if (markers.length < 2) return []
+
+      const segments = []
+      for (let index = 0; index < markers.length; index += 1) {
+        const markerStart = markers[index].index + (markers[index][0].length - markers[index][1].length)
+        const nextMarkerStart = index + 1 < markers.length
+          ? markers[index + 1].index + (markers[index + 1][0].length - markers[index + 1][1].length)
+          : compact.length
+        const segment = compact.slice(markerStart, nextMarkerStart).trim().replace(/[;,:]\s*$/, '')
+        if (segment) segments.push(segment)
+      }
+
+      return segments
+    }
+    const separatorIndex = item.indexOf(':')
+    if (separatorIndex < 0) return `- ${item}`
+
+    const label = item.slice(0, separatorIndex).trim()
+    const value = item.slice(separatorIndex + 1).trim()
+    if (!value) return `- ${label}:`
+
+    const valueItems = value
+      .split(/\s*;\s*/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+
+    const numberedItems = splitNumberedItems(value)
+    if (numberedItems.length >= 2) {
+      const compactValue = value.replace(/\s+/g, ' ').trim()
+      const firstNumberedIndex = compactValue.search(/\d+[\.)]\s*/)
+      const intro = firstNumberedIndex > 0 ? compactValue.slice(0, firstNumberedIndex).trim().replace(/[;,:]\s*$/, '') : ''
+      const introBlock = intro ? `  ${intro}\n` : ''
+      return `- ${label}:\n${introBlock}${numberedItems.map((entry) => `  ${entry}`).join('\n')}`
+    }
+
+    const shouldForceLabMultiline = (valueItems.length > 1 || hasDateOrTime(label)) && isLaboratoryLabel(label)
+    if (shouldForceLabMultiline) {
+      return `- ${label}:\n${valueItems.map((entry) => `  - ${entry}`).join('\n')}`
+    }
+
+    const normalizedValue = valueItems.join(' ')
+    return `- ${label}:\n  ${normalizedValue}`
+  }
+
   if (complements.exams.length) {
-    blocks.push(`Resultados/Exames adicionais:\n${complements.exams.map((item) => `- ${item}`).join('\n')}`)
+    blocks.push(`Resultados/Exames adicionais:\n${complements.exams.map((item) => formatExamComplementItem(item)).join('\n')}`)
   }
 
   if (complements.opinions.length) {
